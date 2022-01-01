@@ -1,0 +1,1 @@
+add_executable( asmexecute asmexecute.cpp )

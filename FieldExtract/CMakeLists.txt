@@ -1,0 +1,1 @@
+add_executable( selectfields selectfields.cpp AsmCopyGen.cpp AsmUtils.cpp )
