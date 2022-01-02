@@ -10,7 +10,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // movzbl source(%rdi), %eax
             if (source == 0) {
                 insert({0x0f, 0xb6, 0x07});
-            } else if (source < 256) {
+            } else if (source < 128) {
                 insert({0x0f, 0xb6, 0x47, uint8_t(source)});
             } else {
                 insert({0x0f, 0xb6, 0x87, uint8_t(source), uint8_t(source >> 8), uint8_t(source >> 16),
@@ -19,7 +19,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov %al,target(%rsi)
             if (target == 0) {
                 insert({0x88, 0x06});
-            } else if (target < 256) {
+            } else if (target < 128) {
                 insert({0x88, 0x46, uint8_t(target)});
             } else {
                 insert(
@@ -30,7 +30,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // movzwl source(%rdi), %eax
             if (source == 0) {
                 insert({0x0f, 0xb7, 0x07});
-            } else if (source < 256) {
+            } else if (source < 128) {
                 insert({0x0f, 0xb7, 0x47, uint8_t(source)});
             } else {
                 insert({0x0f, 0xb7, 0x87, uint8_t(source), uint8_t(source >> 8), uint8_t(source >> 16),
@@ -39,7 +39,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov %ax,target(%rsi)
             if (target == 0) {
                 insert({0x66, 0x89, 0x06});
-            } else if (target < 256) {
+            } else if (target < 128) {
                 insert({0x66, 0x89, 0x46, uint8_t(target)});
             } else {
                 insert({0x66, 0x89, 0x86, uint8_t(target), uint8_t(target >> 8), uint8_t(target >> 16),
@@ -50,7 +50,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov source(%rdi), %eax
             if (source == 0) {
                 insert({0x8b, 0x07});
-            } else if (source < 256) {
+            } else if (source < 128) {
                 insert({0x8b, 0x47, uint8_t(source)});
             } else {
                 insert(
@@ -59,7 +59,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov %eax,target(%rsi)
             if (target == 0) {
                 insert({0x89, 0x06});
-            } else if (target < 256) {
+            } else if (target < 128) {
                 insert({0x89, 0x46, uint8_t(target)});
             } else {
                 insert(
@@ -70,7 +70,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov source(%rdi), %rax
             if (source == 0) {
                 insert({0x48, 0x8b, 0x07});
-            } else if (source < 256) {
+            } else if (source < 128) {
                 insert({0x48, 0x8b, 0x47, uint8_t(source)});
             } else {
                 insert({0x48, 0x8b, 0x87, uint8_t(source), uint8_t(source >> 8), uint8_t(source >> 16),
@@ -79,7 +79,7 @@ void AsmCopyGen::copyField(uint32_t source, uint32_t target, uint32_t size) {
             // mov %rax,target(%rsi)
             if (target == 0) {
                 insert({0x48, 0x89, 0x06});
-            } else if (target < 256) {
+            } else if (target < 128) {
                 insert({0x48, 0x89, 0x46, uint8_t(target)});
             } else {
                 insert({0x48, 0x89, 0x86, uint8_t(target), uint8_t(target >> 8), uint8_t(target >> 16),

@@ -30,6 +30,26 @@ struct Message {
     int16_t field_18;
     int32_t field_19;
     int64_t field_20;
+    uint8_t field_21;
+    uint16_t field_22;
+    uint32_t field_23;
+    uint64_t field_24;
+    int8_t field_25;
+    int16_t field_26;
+    int32_t field_27;
+    int64_t field_28;
+    int8_t field_29;
+    int16_t field_30;
+    int32_t field_31;
+    int64_t field_32;
+    int8_t field_33;
+    int16_t field_34;
+    int32_t field_35;
+    int64_t field_36;
+    int8_t field_37;
+    int16_t field_38;
+    int32_t field_39;
+    int64_t field_40;
 } __attribute__((packed));
 
 struct MetaItem {
@@ -49,7 +69,17 @@ std::vector<MetaItem> metadata = {
     {offsetof(Message, field_13), sizeof(Message::field_13)}, {offsetof(Message, field_14), sizeof(Message::field_14)},
     {offsetof(Message, field_15), sizeof(Message::field_15)}, {offsetof(Message, field_16), sizeof(Message::field_16)},
     {offsetof(Message, field_17), sizeof(Message::field_17)}, {offsetof(Message, field_18), sizeof(Message::field_18)},
-    {offsetof(Message, field_19), sizeof(Message::field_19)}, {offsetof(Message, field_20), sizeof(Message::field_20)}};
+    {offsetof(Message, field_19), sizeof(Message::field_19)}, {offsetof(Message, field_20), sizeof(Message::field_20)},
+    {offsetof(Message, field_21), sizeof(Message::field_21)}, {offsetof(Message, field_22), sizeof(Message::field_22)},
+    {offsetof(Message, field_23), sizeof(Message::field_23)}, {offsetof(Message, field_24), sizeof(Message::field_24)},
+    {offsetof(Message, field_25), sizeof(Message::field_25)}, {offsetof(Message, field_26), sizeof(Message::field_26)},
+    {offsetof(Message, field_27), sizeof(Message::field_27)}, {offsetof(Message, field_28), sizeof(Message::field_28)},
+    {offsetof(Message, field_29), sizeof(Message::field_29)}, {offsetof(Message, field_30), sizeof(Message::field_30)},
+    {offsetof(Message, field_31), sizeof(Message::field_31)}, {offsetof(Message, field_32), sizeof(Message::field_32)},
+    {offsetof(Message, field_33), sizeof(Message::field_33)}, {offsetof(Message, field_34), sizeof(Message::field_34)},
+    {offsetof(Message, field_35), sizeof(Message::field_35)}, {offsetof(Message, field_36), sizeof(Message::field_36)},
+    {offsetof(Message, field_37), sizeof(Message::field_37)}, {offsetof(Message, field_38), sizeof(Message::field_38)},
+    {offsetof(Message, field_39), sizeof(Message::field_39)}, {offsetof(Message, field_40), sizeof(Message::field_40)}};
 
 // Use metadata and the user input field list to create the custom assembly
 Bytes genCopyAssembly(const std::vector<uint32_t> &ilist) {
@@ -99,8 +129,23 @@ void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist)
 }
 
 extern "C" {
-extern char hotpatch[256];
+extern uint8_t hotpatch[];
+extern uint8_t hotpatch_end[];
 };
+
+void compare(const std::vector<uint8_t> &golden, const std::vector<uint8_t> &bytes) {
+    if (golden.size() != bytes.size()) {
+        std::cout << "Error: vector size is " << bytes.size() << " expected " << golden.size() << std::endl;
+        return;
+    }
+    for (uint32_t j = 0; j < golden.size(); ++j) {
+        if (golden[j] != bytes[j]) {
+            std::cout << "Error on byte " << j << " got " << uint32_t(bytes[j]) << " expected " << uint32_t(golden[j])
+                      << std::endl;
+            return;
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     // Sanity
@@ -121,8 +166,10 @@ int main(int argc, char *argv[]) {
     }
 
     // Hotpatch first
-    Bytes hp = genHotpatch(fields, 256);
-    makeExecutable(hotpatch, 256);
+    uint32_t hotpatch_size = intptr_t(hotpatch_end) - intptr_t(hotpatch);
+    std::cout << "Hotpatch size:" << hotpatch_size << std::endl;
+    Bytes hp = genHotpatch(fields, hotpatch_size);
+    makeExecutable(hotpatch, hotpatch_size);
     memcpy((void *)&hotpatch[0], hp.data(), hp.size());
     std::cout << "Hotpatch:" << std::endl;
     for (uint8_t value : hp) {
@@ -149,9 +196,42 @@ int main(int argc, char *argv[]) {
     msg.field_2 = 2;
     msg.field_3 = 3;
     msg.field_4 = 4;
+    msg.field_5 = 5;
+    msg.field_6 = 6;
+    msg.field_7 = 7;
+    msg.field_8 = 8;
+    msg.field_9 = 9;
     msg.field_10 = 10;
+    msg.field_11 = 11;
+    msg.field_12 = 12;
+    msg.field_13 = 13;
+    msg.field_14 = 14;
+    msg.field_15 = 15;
+    msg.field_16 = 16;
+    msg.field_17 = 17;
+    msg.field_18 = 18;
     msg.field_19 = 19;
     msg.field_20 = 20;
+    msg.field_21 = 21;
+    msg.field_22 = 22;
+    msg.field_23 = 23;
+    msg.field_24 = 24;
+    msg.field_25 = 25;
+    msg.field_26 = 26;
+    msg.field_27 = 27;
+    msg.field_28 = 28;
+    msg.field_29 = 29;
+    msg.field_30 = 30;
+    msg.field_31 = 31;
+    msg.field_32 = 32;
+    msg.field_33 = 33;
+    msg.field_34 = 34;
+    msg.field_35 = 35;
+    msg.field_36 = 36;
+    msg.field_37 = 37;
+    msg.field_38 = 38;
+    msg.field_39 = 39;
+    msg.field_40 = 40;
 
     // Create an array to hold the results
     // This example is current not going to check the size but this should be
@@ -159,6 +239,7 @@ int main(int argc, char *argv[]) {
     // So this *might* crash if you are a smart ass and pass a large enough list
     // Fill with some notorious values (0xff)
     std::vector<uint8_t> bytes(4096, 0xff);
+    std::vector<uint8_t> golden = bytes;
 
     // Loop over a number of times doing copies and gathering
     // micro-benchmarking statistics
@@ -167,30 +248,41 @@ int main(int argc, char *argv[]) {
     double sum3 = 0;
     const unsigned numloops = 1000000;
     for (uint32_t j = 0; j < numloops; ++j) {
-        uint64_t t0 = now();
+        std::fill(bytes.begin(), bytes.end(), 0xff);
+
         // Test "normal" way
+        uint64_t t0 = now();
         copyVanilla(bytes.data(), (uint8_t *)&msg, fields);
+        uint64_t t1 = now();
+        golden = bytes;
 
         // Test with hotpatch
-        uint64_t t1 = now();
+        std::fill(bytes.begin(), bytes.end(), 0xff);
+        uint64_t t2 = now();
         register uint8_t *src asm("rdi") = (uint8_t *)&msg;
         register uint8_t *dst asm("rsi") = bytes.data();
         asm(R"( 
 .globl hotpatch
 hotpatch:
-.zero 256    
+.zero 512
+.globl hotpatch_end 
+hotpatch_end:    
 )" ::"r"(src),
             "r"(dst));
+        uint64_t t3 = now();
+        compare(golden, bytes);
 
         // Test with pointer
-        uint64_t t2 = now();
+        std::fill(bytes.begin(), bytes.end(), 0xff);
+        uint64_t t4 = now();
         copyfn(&msg, bytes.data());
-        uint64_t t3 = now();
+        uint64_t t5 = now();
+        compare(golden, bytes);
 
         // Add to stats
         sum1 += (t1 - t0);
-        sum2 += (t2 - t1);
-        sum3 += (t3 - t2);
+        sum2 += (t3 - t2);
+        sum3 += (t5 - t4);
     }
 
     // Display statistics
