@@ -8,7 +8,7 @@
 #include <string.h>
 
 // Makes the memory pointed executable
-void makeExecutable(void *code, size_t size)
+void makeWritable(void *code, size_t size)
 {
     size_t pagesize = getpagesize();
     uint64_t codeaddr = uint64_t(code);
@@ -22,26 +22,30 @@ void makeExecutable(void *code, size_t size)
 extern "C"
 {
     extern int mul2(int, int);
-    extern int mul2_end;
 };
 
 asm(R"(
-.globl mul2, mul2_end
+.globl mul2
 .type mul2, @function
 mul2:
-    mov %edi, %eax
-    imul %esi, %eax
-    nop
-    ret
-mul2_end:
+.zero 8
 )");
 
 int main()
 {
+    // Assembly
+    uint8_t code[] =
+        {
+            0x89, 0xf8,       // mov eax, edi
+            0x0f, 0xaf, 0xc6, // imul eax, esi
+            0xc3              // ret
+        };
 
-    // Execute code
-    std::cout << "Size:" << intptr_t(&mul2_end) - intptr_t(&mul2) << std::endl;
-    std::cout << "Result:" << mul2(2, 3) << std::endl;
+    // Patch function
+    makeWritable((void *)mul2, sizeof(code));
+    memcpy((void *)mul2, code, sizeof(code));
 
+    // Execute
+    std::cout << "Result of 2x3=" << mul2(2, 3) << std::endl;
     return 0;
 }
