@@ -8,6 +8,7 @@
 #include <array>
 #include <iostream>
 
+// A random message with a sequence of fields
 struct Message
 {
     uint8_t field_1;
@@ -62,6 +63,7 @@ std::vector<MetaItem> metadata = {
     {offsetof(Message, field_19), sizeof(Message::field_19)},
     {offsetof(Message, field_20), sizeof(Message::field_20)}};
 
+// Use metadata and the user input field list to create the custom assembly
 Bytes genCopyAssembly(const std::vector<uint32_t> &ilist)
 {
     AsmCopyGen gen;
@@ -75,6 +77,7 @@ Bytes genCopyAssembly(const std::vector<uint32_t> &ilist)
     return gen.getBytes();
 }
 
+// Make the copy in the traditional way using metadata and offsets
 void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist)
 {
     uint32_t offset = 0;
@@ -88,15 +91,34 @@ void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist)
 
 int main(int argc, char *argv[])
 {
+    // Sanity
+    if (argc < 2)
+    {
+        std::cout << "Usage: selectfields <num> [ <num> ... ]" << std::endl;
+        std::cout << "Pass a list of field numbers that should be copied into the output messages in any order. " << std::endl;
+        std::cout << "Valid field numbers from 1 to 20" << std::endl;
+        std::cout << "Example: 1 2 3 4 15 20" << std::endl;
+        return 0;
+    }
+
+    // Read input vector from user
     std::vector<unsigned> fields;
     for (uint32_t j = 1; j < argc; ++j)
     {
         fields.push_back(::atoi(argv[j]));
     }
+
+    // Create custom generated assembly for the given fields
     Bytes proc = genCopyAssembly(fields);
+
+    // Make contents of vector executable
     makeExecutable(proc.data(), proc.size());
+
+    // Assign pointer to function
     using CopyFieldsFn = void(Message *, uint8_t *);
     CopyFieldsFn *copyfn = reinterpret_cast<CopyFieldsFn *>(proc.data());
+
+    // Create a typical message, fill fields
     Message msg;
     std::memset(&msg, 0, sizeof(msg));
     msg.field_1 = 1;
@@ -106,25 +128,43 @@ int main(int argc, char *argv[])
     msg.field_10 = 10;
     msg.field_19 = 19;
     msg.field_20 = 20;
-    std::array<uint8_t, 64> bytes;
-    bytes.fill(0xff);
 
+    // Create an array to hold the results
+    // This example is current not going to check the size but this should be
+    // done using the metadata provided
+    // So this *might* crash if you are a smart ass and pass a large enough list
+    // Fill with some notorious values (0xff)
+    std::vector<uint8_t> bytes(4096, 0xff);
+
+    // Loop over a number of times doing copies and gathering
+    // micro-benchmarking statistics
     double sum1 = 0;
     double sum2 = 0;
     const unsigned numloops = 1000000;
     for (uint32_t j = 0; j < numloops; ++j)
     {
+        // Test optimized
         uint64_t t0 = now();
         copyfn(&msg, bytes.data());
         uint64_t t1 = now();
+
+        // Test "normal" way
         copyVanilla(bytes.data(), (uint8_t *)&msg, fields);
         uint64_t t2 = now();
+
+        // Add to stats
         sum1 += (t1 - t0);
         sum2 += (t2 - t1);
     }
-    std::cout << sum1 / numloops << std::endl;
-    std::cout << sum2 / numloops << std::endl;
+
+    // Display statistics
+    std::cout << "Average times:" << std::endl;
+    std::cout << "\tAssembly Gen:" << sum1 / numloops << std::endl;
+    std::cout << "\tVanilla copy:" << sum2 / numloops << std::endl;
     std::cout << std::endl;
+
+    // Printout end result for peace of mind
+    std::cout << "Bytes:\n\t";
     for (uint8_t val : bytes)
     {
         char str[16];
