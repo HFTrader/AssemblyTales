@@ -1,16 +1,15 @@
 
-#include "AsmCopyGen.h"
-#include "AsmUtils.h"
-
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <array>
 #include <iostream>
 
+#include "AsmCopyGen.h"
+#include "AsmUtils.h"
+
 // A random message with a sequence of fields
-struct Message
-{
+struct Message {
     uint8_t field_1;
     uint16_t field_2;
     uint32_t field_3;
@@ -33,8 +32,7 @@ struct Message
     int64_t field_20;
 } __attribute__((packed));
 
-struct MetaItem
-{
+struct MetaItem {
     uint32_t offset;
     uint32_t size;
 };
@@ -42,60 +40,75 @@ struct MetaItem
 using Bytes = AsmCopyGen::Bytes;
 
 std::vector<MetaItem> metadata = {
-    {offsetof(Message, field_1), sizeof(Message::field_1)},
-    {offsetof(Message, field_2), sizeof(Message::field_2)},
-    {offsetof(Message, field_3), sizeof(Message::field_3)},
-    {offsetof(Message, field_4), sizeof(Message::field_4)},
-    {offsetof(Message, field_5), sizeof(Message::field_5)},
-    {offsetof(Message, field_6), sizeof(Message::field_6)},
-    {offsetof(Message, field_7), sizeof(Message::field_7)},
-    {offsetof(Message, field_8), sizeof(Message::field_8)},
-    {offsetof(Message, field_9), sizeof(Message::field_9)},
-    {offsetof(Message, field_10), sizeof(Message::field_10)},
-    {offsetof(Message, field_11), sizeof(Message::field_11)},
-    {offsetof(Message, field_12), sizeof(Message::field_12)},
-    {offsetof(Message, field_13), sizeof(Message::field_13)},
-    {offsetof(Message, field_14), sizeof(Message::field_14)},
-    {offsetof(Message, field_15), sizeof(Message::field_15)},
-    {offsetof(Message, field_16), sizeof(Message::field_16)},
-    {offsetof(Message, field_17), sizeof(Message::field_17)},
-    {offsetof(Message, field_18), sizeof(Message::field_18)},
-    {offsetof(Message, field_19), sizeof(Message::field_19)},
-    {offsetof(Message, field_20), sizeof(Message::field_20)}};
+    {offsetof(Message, field_1), sizeof(Message::field_1)},   {offsetof(Message, field_2), sizeof(Message::field_2)},
+    {offsetof(Message, field_3), sizeof(Message::field_3)},   {offsetof(Message, field_4), sizeof(Message::field_4)},
+    {offsetof(Message, field_5), sizeof(Message::field_5)},   {offsetof(Message, field_6), sizeof(Message::field_6)},
+    {offsetof(Message, field_7), sizeof(Message::field_7)},   {offsetof(Message, field_8), sizeof(Message::field_8)},
+    {offsetof(Message, field_9), sizeof(Message::field_9)},   {offsetof(Message, field_10), sizeof(Message::field_10)},
+    {offsetof(Message, field_11), sizeof(Message::field_11)}, {offsetof(Message, field_12), sizeof(Message::field_12)},
+    {offsetof(Message, field_13), sizeof(Message::field_13)}, {offsetof(Message, field_14), sizeof(Message::field_14)},
+    {offsetof(Message, field_15), sizeof(Message::field_15)}, {offsetof(Message, field_16), sizeof(Message::field_16)},
+    {offsetof(Message, field_17), sizeof(Message::field_17)}, {offsetof(Message, field_18), sizeof(Message::field_18)},
+    {offsetof(Message, field_19), sizeof(Message::field_19)}, {offsetof(Message, field_20), sizeof(Message::field_20)}};
 
 // Use metadata and the user input field list to create the custom assembly
-Bytes genCopyAssembly(const std::vector<uint32_t> &ilist)
-{
+Bytes genCopyAssembly(const std::vector<uint32_t> &ilist) {
     AsmCopyGen gen;
     uint32_t offset = 0;
-    for (unsigned field : ilist)
-    {
+    for (unsigned field : ilist) {
         MetaItem meta(metadata[field - 1]);
         gen.copyField(meta.offset, offset, meta.size);
         offset += meta.size;
     }
-    return gen.getBytes();
+    Bytes res = gen.getBytes();
+    res.push_back(0xc3);  // ret
+    return res;
+}
+
+Bytes genHotpatch(const std::vector<uint32_t> &ilist, uint32_t patchsize) {
+    AsmCopyGen gen;
+    uint32_t offset = 0;
+    for (unsigned field : ilist) {
+        MetaItem meta(metadata[field - 1]);
+        gen.copyField(meta.offset, offset, meta.size);
+        offset += meta.size;
+    }
+    Bytes res = gen.getBytes();
+    uint32_t left = patchsize - res.size();
+    if (left < 5) {
+        for (uint32_t j = 0; j < left; ++j) {
+            res.push_back(0x90);  // nop
+        }
+    } else {
+        // Short jump
+        left -= 5;
+        Bytes v{0xe9, uint8_t(left), uint8_t(left >> 8), uint8_t(left >> 16), uint8_t(left >> 24)};
+        res.insert(res.end(), v.begin(), v.end());
+    }
+    return res;
 }
 
 // Make the copy in the traditional way using metadata and offsets
-void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist)
-{
+void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist) {
     uint32_t offset = 0;
-    for (unsigned field : ilist)
-    {
+    for (unsigned field : ilist) {
         MetaItem meta(metadata[field - 1]);
         memcpy(&dst[offset], &src[meta.offset], meta.size);
         offset += meta.size;
     }
 }
 
-int main(int argc, char *argv[])
-{
+extern "C" {
+extern char hotpatch[256];
+};
+
+int main(int argc, char *argv[]) {
     // Sanity
-    if (argc < 2)
-    {
+    if (argc < 2) {
         std::cout << "Usage: selectfields <num> [ <num> ... ]" << std::endl;
-        std::cout << "Pass a list of field numbers that should be copied into the output messages in any order. " << std::endl;
+        std::cout << "Pass a list of field numbers that should be copied into the "
+                     "output messages in any order. "
+                  << std::endl;
         std::cout << "Valid field numbers from 1 to 20" << std::endl;
         std::cout << "Example: 1 2 3 4 15 20" << std::endl;
         return 0;
@@ -103,10 +116,21 @@ int main(int argc, char *argv[])
 
     // Read input vector from user
     std::vector<unsigned> fields;
-    for (uint32_t j = 1; j < argc; ++j)
-    {
+    for (uint32_t j = 1; j < argc; ++j) {
         fields.push_back(::atoi(argv[j]));
     }
+
+    // Hotpatch first
+    Bytes hp = genHotpatch(fields, 256);
+    makeExecutable(hotpatch, 256);
+    memcpy((void *)&hotpatch[0], hp.data(), hp.size());
+    std::cout << "Hotpatch:" << std::endl;
+    for (uint8_t value : hp) {
+        char str[32];
+        sprintf(str, "%02x ", value);
+        std::cout << str << " ";
+    }
+    std::cout << std::endl;
 
     // Create custom generated assembly for the given fields
     Bytes proc = genCopyAssembly(fields);
@@ -140,37 +164,51 @@ int main(int argc, char *argv[])
     // micro-benchmarking statistics
     double sum1 = 0;
     double sum2 = 0;
+    double sum3 = 0;
     const unsigned numloops = 1000000;
-    for (uint32_t j = 0; j < numloops; ++j)
-    {
-        // Test optimized
+    for (uint32_t j = 0; j < numloops; ++j) {
         uint64_t t0 = now();
-        copyfn(&msg, bytes.data());
-        uint64_t t1 = now();
-
         // Test "normal" way
         copyVanilla(bytes.data(), (uint8_t *)&msg, fields);
+
+        // Test with hotpatch
+        uint64_t t1 = now();
+        register uint8_t *src asm("rdi") = (uint8_t *)&msg;
+        register uint8_t *dst asm("rsi") = bytes.data();
+        asm(R"( 
+.globl hotpatch
+hotpatch:
+.zero 256    
+)" ::"r"(src),
+            "r"(dst));
+
+        // Test with pointer
         uint64_t t2 = now();
+        copyfn(&msg, bytes.data());
+        uint64_t t3 = now();
 
         // Add to stats
         sum1 += (t1 - t0);
         sum2 += (t2 - t1);
+        sum3 += (t3 - t2);
     }
 
     // Display statistics
     std::cout << "Average times:" << std::endl;
-    std::cout << "\tAssembly Gen:" << sum1 / numloops << std::endl;
-    std::cout << "\tVanilla copy:" << sum2 / numloops << std::endl;
+    std::cout << "\tHotpatch Gen:" << sum2 / numloops << std::endl;
+    std::cout << "\tPointer  Gen:" << sum3 / numloops << std::endl;
+    std::cout << "\tVanilla copy:" << sum1 / numloops << std::endl;
     std::cout << std::endl;
 
-    // Printout end result for peace of mind
+// Printout end result for peace of mind
+#if 0 
     std::cout << "Bytes:\n\t";
-    for (uint8_t val : bytes)
-    {
+    for (uint8_t val : bytes) {
         char str[16];
         ::sprintf(str, "%02x ", val);
         std::cout << str;
     }
     std::cout << std::endl;
+#endif
     return 0;
 }
