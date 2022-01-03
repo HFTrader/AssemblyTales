@@ -172,9 +172,9 @@ int main(int argc, char *argv[]) {
     makeExecutable(hotpatch, hotpatch_size);
     memcpy((void *)&hotpatch[0], hp.data(), hp.size());
     std::cout << "Hotpatch:" << std::endl;
-    for (uint8_t value : hp) {
+    for (uint32_t j = 0; j < hp.size(); ++j) {
         char str[32];
-        sprintf(str, "%02x ", value);
+        sprintf(str, "%02x ", hotpatch[j]);
         std::cout << str << " ";
     }
     std::cout << std::endl;
@@ -246,6 +246,7 @@ int main(int argc, char *argv[]) {
     double sum1 = 0;
     double sum2 = 0;
     double sum3 = 0;
+    double sum4 = 0;
     const unsigned numloops = 1000000;
     for (uint32_t j = 0; j < numloops; ++j) {
         std::fill(bytes.begin(), bytes.end(), 0xff);
@@ -279,17 +280,22 @@ hotpatch_end:
         uint64_t t5 = now();
         compare(golden, bytes);
 
+        uint64_t t6 = now();
+        // asm("" ::: "memory");
+        uint64_t t7 = now();
+
         // Add to stats
         sum1 += (t1 - t0);
         sum2 += (t3 - t2);
         sum3 += (t5 - t4);
+        sum4 += (t7 - t6);
     }
 
     // Display statistics
     std::cout << "Average times:" << std::endl;
-    std::cout << "\tHotpatch Gen:" << sum2 / numloops << std::endl;
-    std::cout << "\tPointer  Gen:" << sum3 / numloops << std::endl;
-    std::cout << "\tVanilla copy:" << sum1 / numloops << std::endl;
+    std::cout << "\tHotpatch Gen:" << (sum2 - sum4) / numloops << std::endl;
+    std::cout << "\tPointer  Gen:" << (sum3 - sum4) / numloops << std::endl;
+    std::cout << "\tVanilla copy:" << (sum1 - sum4) / numloops << std::endl;
     std::cout << std::endl;
 
 // Printout end result for peace of mind
