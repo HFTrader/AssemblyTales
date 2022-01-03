@@ -16,7 +16,11 @@ Several tests with optimizations for division and checking multiples
 
 ## FieldExtract
 
-Example on how generated assembly x86_64 can be used to improve access times to fields sparse within a large message
+(2022/01/01) Discuss on how generated assembly x86_64 can be used to improve access times to fields sparse within a large message
+
+http://www.vitorian.com/archives/2186
+
+http://www.vitorian.com/archives/2208
 
 ## HotPatch
 
