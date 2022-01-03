@@ -321,7 +321,7 @@ int main(int argc, char *argv[]) {
             hotpatch_end:    
             )" ::"D"(&msg),
                 "S"(bytes.data())
-                : "rax");
+                : "rax", "memory");
             uint64_t t1 = toc();
             sum2 += (t1 - t0);
 
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]) {
             .zero 5
             )" ::"D"(&msg),
                 "S"(bytes.data())
-                : "rax");
+                : "rax", "memory");
             uint64_t t1 = toc();
             sum5 += (t1 - t0);
 
