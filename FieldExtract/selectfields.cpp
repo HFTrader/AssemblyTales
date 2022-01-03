@@ -118,6 +118,28 @@ Bytes genHotpatch(const std::vector<uint32_t> &ilist, uint32_t patchsize) {
     return res;
 }
 
+void genTrampoline(const std::vector<uint32_t> &ilist, void *callback, Bytes &res) {
+    AsmCopyGen gen;
+    uint32_t offset = 0;
+    for (unsigned field : ilist) {
+        MetaItem meta(metadata[field - 1]);
+        gen.copyField(meta.offset, offset, meta.size);
+        offset += meta.size;
+    }
+    res = gen.getBytes();
+
+    // Add the jump back
+    Bytes v({0xe9, 0, 0, 0, 0});
+    res.insert(res.end(), v.begin(), v.end());
+    uint8_t *endptr = res.data() + res.size();
+    uint64_t off = uint64_t(callback) - uint64_t(endptr);
+    uint8_t *jump = endptr - 4;
+    jump[0] = uint8_t(off);
+    jump[1] = uint8_t(off >> 8);
+    jump[2] = uint8_t(off >> 16);
+    jump[3] = uint8_t(off >> 24);
+}
+
 // Make the copy in the traditional way using metadata and offsets
 void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist) {
     uint32_t offset = 0;
@@ -131,17 +153,33 @@ void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist)
 extern "C" {
 extern uint8_t hotpatch[];
 extern uint8_t hotpatch_end[];
+extern uint8_t trampoline[];
 };
 
-void compare(const std::vector<uint8_t> &golden, const std::vector<uint8_t> &bytes) {
+void compare(const std::string &msg, const std::vector<uint8_t> &golden, const std::vector<uint8_t> &bytes) {
     if (golden.size() != bytes.size()) {
-        std::cout << "Error: vector size is " << bytes.size() << " expected " << golden.size() << std::endl;
+        std::cout << msg << " Error: vector size is " << bytes.size() << " expected " << golden.size() << std::endl;
         return;
     }
     for (uint32_t j = 0; j < golden.size(); ++j) {
         if (golden[j] != bytes[j]) {
-            std::cout << "Error on byte " << j << " got " << uint32_t(bytes[j]) << " expected " << uint32_t(golden[j])
-                      << std::endl;
+            std::cout << msg << " Error on byte " << j << " got " << uint32_t(bytes[j]) << " expected "
+                      << uint32_t(golden[j]) << std::endl;
+            std::cout << "Golden:\n";
+            for (uint32_t k = 0; k < golden.size(); ++k) {
+                char str[16];
+                sprintf(str, "%02x ", golden[k]);
+                std::cout << str;
+            }
+            std::cout << std::endl;
+            std::cout << "Bytes:\n";
+            for (uint32_t k = 0; k < golden.size(); ++k) {
+                char str[16];
+                sprintf(str, "%02x ", bytes[k]);
+                std::cout << str;
+            }
+            std::cout << std::endl;
+            std::exit(0);
             return;
         }
     }
@@ -181,13 +219,23 @@ int main(int argc, char *argv[]) {
 
     // Create custom generated assembly for the given fields
     Bytes proc = genCopyAssembly(fields);
-
-    // Make contents of vector executable
     makeExecutable(proc.data(), proc.size());
 
     // Assign pointer to function
     using CopyFieldsFn = void(Message *, uint8_t *);
     CopyFieldsFn *copyfn = reinterpret_cast<CopyFieldsFn *>(proc.data());
+
+    // Setup trampoline
+    Bytes tramp;
+    uint8_t *trampend = &trampoline[5];  // next byte after jump
+    genTrampoline(fields, trampend, tramp);
+    makeExecutable(tramp.data(), tramp.size());
+    uint64_t troffset = uint64_t(tramp.data()) - uint64_t(trampend);
+    trampoline[0] = 0xe9;  // jumpq 32-bit
+    trampoline[1] = uint8_t(troffset);
+    trampoline[2] = uint8_t(troffset >> 8);
+    trampoline[3] = uint8_t(troffset >> 16);
+    trampoline[4] = uint8_t(troffset >> 24);
 
     // Create a typical message, fill fields
     Message msg;
@@ -247,55 +295,81 @@ int main(int argc, char *argv[]) {
     double sum2 = 0;
     double sum3 = 0;
     double sum4 = 0;
+    double sum5 = 0;
     const unsigned numloops = 1000000;
+    bool ok = false;
     for (uint32_t j = 0; j < numloops; ++j) {
-        std::fill(bytes.begin(), bytes.end(), 0xff);
-
         // Test "normal" way
-        uint64_t t0 = now();
-        copyVanilla(bytes.data(), (uint8_t *)&msg, fields);
-        uint64_t t1 = now();
-        golden = bytes;
+        {
+            std::fill(bytes.begin(), bytes.end(), 0xff);
+            uint64_t t0 = tic();
+            copyVanilla(bytes.data(), (uint8_t *)&msg, fields);
+            uint64_t t1 = toc();
+            sum1 += (t1 - t0);
+            golden = bytes;
+        }
 
         // Test with hotpatch
-        std::fill(bytes.begin(), bytes.end(), 0xff);
-        uint64_t t2 = now();
-        register uint8_t *src asm("rdi") = (uint8_t *)&msg;
-        register uint8_t *dst asm("rsi") = bytes.data();
-        asm(R"( 
-.globl hotpatch
-hotpatch:
-.zero 512
-.globl hotpatch_end 
-hotpatch_end:    
-)" ::"r"(src),
-            "r"(dst));
-        uint64_t t3 = now();
-        compare(golden, bytes);
+        {
+            std::fill(bytes.begin(), bytes.end(), 0xff);
+            uint64_t t0 = tic();
+            asm(R"( 
+            .globl hotpatch
+            hotpatch:
+            .zero 512
+            .globl hotpatch_end 
+            hotpatch_end:    
+            )" ::"D"(&msg),
+                "S"(bytes.data())
+                : "rax");
+            uint64_t t1 = toc();
+            sum2 += (t1 - t0);
+
+            compare("Hotpatch", golden, bytes);
+        }
+
+        // Test with trampoline
+        {
+            std::fill(bytes.begin(), bytes.end(), 0xff);
+            uint64_t t0 = tic();
+            asm(R"(
+            .globl trampoline
+            trampoline:
+            .zero 5
+            )" ::"D"(&msg),
+                "S"(bytes.data())
+                : "rax");
+            uint64_t t1 = toc();
+            sum5 += (t1 - t0);
+
+            compare("Trampoline", golden, bytes);
+        }
 
         // Test with pointer
-        std::fill(bytes.begin(), bytes.end(), 0xff);
-        uint64_t t4 = now();
-        copyfn(&msg, bytes.data());
-        uint64_t t5 = now();
-        compare(golden, bytes);
+        {
+            std::fill(bytes.begin(), bytes.end(), 0xff);
+            uint64_t t0 = tic();
+            copyfn(&msg, bytes.data());
+            uint64_t t1 = toc();
+            sum3 += (t1 - t0);
+            compare("Pointer", golden, bytes);
+        }
 
-        uint64_t t6 = now();
-        // asm("" ::: "memory");
-        uint64_t t7 = now();
-
-        // Add to stats
-        sum1 += (t1 - t0);
-        sum2 += (t3 - t2);
-        sum3 += (t5 - t4);
-        sum4 += (t7 - t6);
+        // Empty test
+        {
+            uint64_t t0 = tic();
+            asm("" ::: "memory");
+            uint64_t t1 = toc();
+            sum4 += (t1 - t0);
+        }
     }
 
     // Display statistics
     std::cout << "Average times:" << std::endl;
-    std::cout << "\tHotpatch Gen:" << (sum2 - sum4) / numloops << std::endl;
-    std::cout << "\tPointer  Gen:" << (sum3 - sum4) / numloops << std::endl;
-    std::cout << "\tVanilla copy:" << (sum1 - sum4) / numloops << std::endl;
+    std::cout << "\tVanilla   :" << (sum1 - sum4) / numloops << std::endl;
+    std::cout << "\tHotpatch:  " << (sum2 - sum4) / numloops << std::endl;
+    std::cout << "\tPointer:   " << (sum3 - sum4) / numloops << std::endl;
+    std::cout << "\tTrampoline:" << (sum5 - sum4) / numloops << std::endl;
     std::cout << std::endl;
 
 // Printout end result for peace of mind
