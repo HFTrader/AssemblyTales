@@ -1,6 +1,14 @@
 # Prerequisites
 *.d
 
+#emacs
+*~
+
+# dummy out
+x.x
+x.y
+x.z
+
 # Compiled Object files
 *.slo
 *.lo
