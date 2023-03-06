@@ -42,3 +42,4 @@ x.z
 # cmake
 build
 install
+.vscode
