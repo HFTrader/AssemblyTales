@@ -4,12 +4,13 @@ import os, sys
 import re
 
 if len(sys.argv)<=1:
-    print("Usage: compile_benchmark_results.py <json> [<json> ...]")
+    print("Usage: compile_benchmark_results.py (check|graph) <json> [<json> ...]")
     sys.exit(0)
 
+command = sys.argv[1]
 tests=[]
 benchmarks = {}
-for filename in sys.argv[1:]:
+for filename in sys.argv[2:]:
     with open(filename,'r') as fin:
         jstext = fin.read()
         results = json.loads( jstext )
@@ -26,27 +27,41 @@ for filename in sys.argv[1:]:
         min_value = min(values)
         benchmarks.setdefault(bench_name,[]).append( min_value )
 
-benchmark_names = list(benchmarks.keys())
-num_benchmarks = len(benchmark_names)
-num_tests = len(tests)
-print( "Benchmarks:", benchmark_names )
-print( "Benchmarks:%d Tests:%d" %(num_benchmarks, num_tests) )
-width = 0.5 #1./(1+num_benchmarks)
-fig, axes = plt.subplots(num_benchmarks,layout='constrained',figsize=(8,num_benchmarks*4), sharex=True)
-if num_benchmarks==1:
-    axes = [ axes ]
-for ax,bench_name in zip(axes,benchmark_names):
-    items = benchmarks[bench_name]
-    label_positions = range(num_tests) 
-    rects = ax.bar( label_positions, items, width, label=bench_name)
-    ax.bar_label(rects, padding=3)
-    ax.set_xticks(label_positions,tests )
-    max_value = max(items)
-    min_value = min(items)
-    value_range = max_value - min_value
-    margin = 0.1*value_range
-    ax.legend(loc='upper left', ncols=3)
-    ax.set_ylabel('Cycles')
-    ax.set_ylim( [min_value-margin,max_value+2*margin ] )
-plt.savefig('graph_cycles.png')
+if command=='check':
+    fail = False
+    for bench_name,values in benchmarks.items():
+        last_value = values[-1]
+        sorted_values = sorted(values[:-1])
+        median = sorted_values[int(len(sorted_values)/2)]
+        if last_value > 1.1*median:
+            print("***ERROR*** Regression failed on benchmark",bench_name,": last value", last_value, "from branch", tests[-1], "is higher than the median ", median )
+            fail = True
+    if fail:
+        sys.exit(1)
+    sys.exit(0)
+
+if command=='graph':
+    benchmark_names = list(benchmarks.keys())
+    num_benchmarks = len(benchmark_names)
+    num_tests = len(tests)
+    print( "Benchmarks:", benchmark_names )
+    print( "Benchmarks:%d Tests:%d" %(num_benchmarks, num_tests) )
+    width = 0.5 #1./(1+num_benchmarks)
+    fig, axes = plt.subplots(num_benchmarks,layout='constrained',figsize=(8,num_benchmarks*4), sharex=True)
+    if num_benchmarks==1:
+        axes = [ axes ]
+    for ax,bench_name in zip(axes,benchmark_names):
+        items = benchmarks[bench_name]
+        label_positions = range(num_tests) 
+        rects = ax.bar( label_positions, items, width, label=bench_name)
+        ax.bar_label(rects, padding=3)
+        ax.set_xticks(label_positions,tests )
+        max_value = max(items)
+        min_value = min(items)
+        value_range = max_value - min_value
+        margin = 0.1*value_range
+        ax.legend(loc='upper left', ncols=3)
+        ax.set_ylabel('Cycles')
+        ax.set_ylim( [min_value-margin,max_value+2*margin ] )
+    plt.savefig('graph_cycles.png')
 

@@ -52,13 +52,15 @@ add_branch( v1.7.1 )
 add_branch( main )
 
 string( REPLACE ";" "  " FILE_LIST "${RESULT_FILES}" )
-message( "Files: ${FILE_LIST}")
 
 find_package (Python3 COMPONENTS Interpreter)
 if ( Python3_Interpreter_FOUND )
 add_custom_target( 
     graph ALL
     DEPENDS ${RESULT_FILES}
-    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/compile_benchmark_results.py ${RESULT_FILES} )
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/compile_benchmark_results.py graph ${RESULT_FILES} )
+add_test( NAME regression 
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/compile_benchmark_results.py check ${RESULT_FILES} )
 endif()
+
 
