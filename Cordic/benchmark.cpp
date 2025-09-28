@@ -67,8 +67,8 @@ BENCHMARK(Benchmark<CordicT<32768>, 32768>);
 BENCHMARK(Benchmark<TrivialFn, 262144>);
 BENCHMARK(Benchmark<CordicFn, 262144>);
 BENCHMARK(Benchmark<BitCalcFn, 262144>);
-BENCHMARK(Benchmark<TrivialT<252144>, 262144>);
-BENCHMARK(Benchmark<BitCalcT<252144>, 262144>);
-BENCHMARK(Benchmark<CordicT<252144>, 262144>);
+BENCHMARK(Benchmark<TrivialT<262144>, 262144>);
+BENCHMARK(Benchmark<BitCalcT<262144>, 262144>);
+BENCHMARK(Benchmark<CordicT<262144>, 262144>);
 
 BENCHMARK_MAIN();

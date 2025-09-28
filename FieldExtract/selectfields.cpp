@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 #include "AsmCopyGen.h"
 #include "AsmUtils.h"
@@ -86,6 +87,9 @@ Bytes genCopyAssembly(const std::vector<uint32_t> &ilist) {
     AsmCopyGen gen;
     uint32_t offset = 0;
     for (unsigned field : ilist) {
+        if (field == 0 || field > metadata.size()) {
+            throw std::out_of_range("Field number out of range: " + std::to_string(field));
+        }
         MetaItem meta(metadata[field - 1]);
         gen.copyField(meta.offset, offset, meta.size);
         offset += meta.size;
@@ -99,6 +103,9 @@ Bytes genHotpatch(const std::vector<uint32_t> &ilist, uint32_t patchsize) {
     AsmCopyGen gen;
     uint32_t offset = 0;
     for (unsigned field : ilist) {
+        if (field == 0 || field > metadata.size()) {
+            throw std::out_of_range("Field number out of range: " + std::to_string(field));
+        }
         MetaItem meta(metadata[field - 1]);
         gen.copyField(meta.offset, offset, meta.size);
         offset += meta.size;
@@ -122,6 +129,9 @@ void genTrampoline(const std::vector<uint32_t> &ilist, void *callback, Bytes &re
     AsmCopyGen gen;
     uint32_t offset = 0;
     for (unsigned field : ilist) {
+        if (field == 0 || field > metadata.size()) {
+            throw std::out_of_range("Field number out of range: " + std::to_string(field));
+        }
         MetaItem meta(metadata[field - 1]);
         gen.copyField(meta.offset, offset, meta.size);
         offset += meta.size;
@@ -144,6 +154,9 @@ void genTrampoline(const std::vector<uint32_t> &ilist, void *callback, Bytes &re
 void copyVanilla(uint8_t *dst, uint8_t *src, const std::vector<uint32_t> &ilist) {
     uint32_t offset = 0;
     for (unsigned field : ilist) {
+        if (field == 0 || field > metadata.size()) {
+            throw std::out_of_range("Field number out of range: " + std::to_string(field));
+        }
         MetaItem meta(metadata[field - 1]);
         memcpy(&dst[offset], &src[meta.offset], meta.size);
         offset += meta.size;
@@ -192,7 +205,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Pass a list of field numbers that should be copied into the "
                      "output messages in any order. "
                   << std::endl;
-        std::cout << "Valid field numbers from 1 to 20" << std::endl;
+        std::cout << "Valid field numbers from 1 to " << metadata.size() << std::endl;
         std::cout << "Example: 1 2 3 4 15 20" << std::endl;
         return 0;
     }

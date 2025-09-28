@@ -34,8 +34,8 @@ void VecMultiply(benchmark::State& state) {
     for (float& value : v) value = dist(g);
     for (float& value : m) value = dist(g);
     for (auto _ : state) {
-        Vector v = multiply(m, v);
-        benchmark::DoNotOptimize(v);
+        Vector result = multiply(m, v);
+        benchmark::DoNotOptimize(result);
     }
 }
 

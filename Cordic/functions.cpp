@@ -25,7 +25,7 @@ void bitcalc(int64_t* samples, double freq) {
 }
 template void bitcalc<512>(int64_t* samples, double freq);
 template void bitcalc<32768>(int64_t* samples, double freq);
-template void bitcalc<252144>(int64_t* samples, double freq);
+template void bitcalc<262144>(int64_t* samples, double freq);
 
 void trivial(int64_t* samples, double freq, int N) {
     double cs = (2 * pi * freq) / N;
@@ -40,7 +40,7 @@ void trivial(int64_t* samples, double freq) {
 }
 template void trivial<512>(int64_t* samples, double freq);
 template void trivial<32768>(int64_t* samples, double freq);
-template void trivial<252144>(int64_t* samples, double freq);
+template void trivial<262144>(int64_t* samples, double freq);
 
 void cordic(int64_t* samples, double freq, int N) {
     double sn = std::sin(2 * pi * freq / N);
@@ -63,7 +63,7 @@ void cordic(int64_t* samples, double freq) {
 }
 template void cordic<512>(int64_t* samples, double freq);
 template void cordic<32768>(int64_t* samples, double freq);
-template void cordic<252144>(int64_t* samples, double freq);
+template void cordic<262144>(int64_t* samples, double freq);
 
 void icordic(int64_t* samples, double freq, int N) {
     double sn = std::sin(2 * pi * freq / N);
